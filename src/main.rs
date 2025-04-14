@@ -40,10 +40,24 @@ fn main() {
             let feats: Feats = feats[..feats_end].parse().unwrap();
             println!("{feats:?}");
 
+            let mut flash = None;
             if feats.identify_chip {
                 port.write("I#");
                 let ident = port.read_str();
+                if ident == FAMILY_NRF52 {
+                    flash = Some(Flash {
+                        name: FAMILY_NRF52.into(),
+                        addr: 0,
+                        pages: 256,
+                        size: 4096,
+                        planes: 1,
+                        lock_regions: 0,
+                        user: 0,
+                        stack: 0,
+                    });
+                }
             }
+            println!("{flash:?}");
         }
     }
 }
@@ -119,6 +133,21 @@ impl FromStr for Feats {
         }
         Ok(feats)
     }
+}
+
+// const FAMILY_NRF52: &str = "nRF52840-QIAA";
+const FAMILY_NRF52: &str = "nnRF52840-QIAA";
+
+#[derive(Debug)]
+struct Flash {
+    name: String,
+    addr: u32,
+    pages: u32,
+    size: u32,
+    planes: u32,
+    lock_regions: u32,
+    user: u32,
+    stack: u32,
 }
 
 mod flags {
