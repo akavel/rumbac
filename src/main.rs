@@ -16,7 +16,8 @@ fn main() {
         }
         Info(flags::Info { port }) => {
             // TODO: what baudrate to use by default??
-            let bauds = 921600u32;
+            // let bauds = 921600u32;
+            let bauds = 230400u32;
             use core::time::Duration;
             let mut port: Port = serialport::new(port, bauds)
                 .timeout(Duration::from_secs(1))
@@ -28,7 +29,7 @@ fn main() {
 
             // "version" info
             port.write("V#");
-            let version = port.readln();
+            let version = port.read_str();
             // parse "version" info
             const FEATS_PREFIX: &str = "[Arduino:";
             const FEATS_SUFFIX: &str = "]";
@@ -38,6 +39,11 @@ fn main() {
             let feats_end = feats.find(FEATS_SUFFIX).expect("No feats end found");
             let feats: Feats = feats[..feats_end].parse().unwrap();
             println!("{feats:?}");
+
+            if feats.identify_chip {
+                port.write("I#");
+                let ident = port.read_str();
+            }
         }
     }
 }
@@ -67,14 +73,20 @@ impl Port {
             .expect("Failed to write to port");
     }
 
-    pub fn readln(&mut self) -> String {
-        let mut line = String::new();
+    pub fn read_str(&mut self) -> String {
+        let mut buf = Vec::new();
+        // let mut line = String::new();
         let _ = self
             .inner
-            .read_line(&mut line)
+            // .read_line(&mut line)
+            .read_until(b'\0', &mut buf)
             .expect("Failed to read from port");
-        print!("< {}", line);
-        line
+        buf.pop_if(|b| *b == b'\0');
+        buf.pop_if(|b| *b == b'\r');
+        buf.pop_if(|b| *b == b'\n');
+        let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
+        println!("< {line}");
+        line.into()
     }
 }
 
