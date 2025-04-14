@@ -1,4 +1,5 @@
-use std::io::{BufRead, BufReader, Read, Write};
+use std::io::{BufRead, BufReader, Write};
+use std::str::FromStr;
 use serialport::SerialPort;
 
 fn main() {
@@ -22,9 +23,20 @@ fn main() {
                 .open()
                 .expect("Failed to open port")
                 .into();
+
+            // TODO: set binary mode
+
+            // "version" info
             port.write("V#");
-            let line = port.readln();
-            println!("{}", line);
+            let version = port.readln();
+            // parse "version" info
+            const FEATS_PREFIX: &str = "[Arduino:";
+            const FEATS_SUFFIX: &str = "]";
+            let feats_idx = version.find(FEATS_PREFIX).expect("No feats prefix found") + FEATS_PREFIX.len();
+            let feats = &version[feats_idx..];
+            let feats_end = feats.find(FEATS_SUFFIX).expect("No feats end found");
+            let feats: Feats = feats[..feats_end].parse().unwrap();
+            println!("{feats:?}");
         }
     }
 }
@@ -55,6 +67,37 @@ impl Port {
         let _ = self.inner.read_line(&mut line).expect("Failed to read from port");
         print!("< {}", line);
         line
+    }
+}
+
+#[derive(Debug, Default)]
+struct Feats {
+    pub chip_erase: bool,
+    pub write_buffer: bool,
+    pub checksum_buffer: bool,
+    pub identify_chip: bool,
+    pub reset: bool,
+}
+
+#[derive(Debug)]
+pub struct ParseFeatsError(pub u8);
+
+impl FromStr for Feats {
+    type Err = ParseFeatsError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut feats = Self::default();
+        for b in s.as_bytes() {
+            match b {
+                b'I' => feats.identify_chip = true,
+                b'K' => feats.reset = true,
+                b'X' => feats.chip_erase = true,
+                b'Y' => feats.write_buffer = true,
+                b'Z' => feats.checksum_buffer = true,
+                _ => return Err(ParseFeatsError(*b)),
+            }
+        }
+        Ok(feats)
     }
 }
 
