@@ -1,4 +1,5 @@
-use std::io::BufRead;
+use std::io::{BufRead, BufReader, Read, Write};
+use serialport::SerialPort;
 
 fn main() {
     let flags = flags::Rumbac::from_env_or_exit();
@@ -16,16 +17,44 @@ fn main() {
             // TODO: what baudrate to use by default??
             let bauds = 921600u32;
             use core::time::Duration;
-            let mut port = serialport::new(port, bauds)
+            let mut port: Port = serialport::new(port, bauds)
                 .timeout(Duration::from_secs(1))
                 .open()
-                .expect("Failed to open port");
-            let _ = port.write(b"V#").expect("Failed to write to port");
-            let mut r = std::io::BufReader::new(port);
-            let mut line = String::new();
-            let _ = r.read_line(&mut line).expect("Failed to read from port");
+                .expect("Failed to open port")
+                .into();
+            port.write("V#");
+            let line = port.readln();
             println!("{}", line);
         }
+    }
+}
+
+struct Port {
+    inner: BufReader<Box<dyn serialport::SerialPort>>,
+}
+
+impl From<Box<dyn SerialPort>> for Port {
+    fn from(p: Box<dyn SerialPort>) -> Self {
+        Self::new(p)
+    }
+}
+
+impl Port {
+    pub fn new(p: Box<dyn SerialPort>) -> Self {
+        let inner = BufReader::new(p);
+        Self { inner }
+    }
+
+    pub fn write(&mut self, s: &str) {
+        println!("> {}", s);
+        let _ = self.inner.get_mut().write(s.as_bytes()).expect("Failed to write to port");
+    }
+
+    pub fn readln(&mut self) -> String {
+        let mut line = String::new();
+        let _ = self.inner.read_line(&mut line).expect("Failed to read from port");
+        print!("< {}", line);
+        line
     }
 }
 
