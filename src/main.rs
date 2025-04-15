@@ -63,7 +63,7 @@ fn main() {
 }
 
 struct Port {
-    inner: BufReader<Box<dyn serialport::SerialPort>>,
+    inner: Box<dyn serialport::SerialPort>,
 }
 
 impl From<Box<dyn SerialPort>> for Port {
@@ -74,27 +74,37 @@ impl From<Box<dyn SerialPort>> for Port {
 
 impl Port {
     pub fn new(p: Box<dyn SerialPort>) -> Self {
-        let inner = BufReader::new(p);
-        Self { inner }
+        Self { inner: p }
     }
 
     pub fn write(&mut self, s: &str) {
         println!("> {}", s);
         let _ = self
             .inner
-            .get_mut()
             .write(s.as_bytes())
             .expect("Failed to write to port");
     }
 
     pub fn read_str(&mut self) -> String {
         let mut buf = Vec::new();
-        // let mut line = String::new();
-        let _ = self
-            .inner
-            // .read_line(&mut line)
-            .read_until(b'\0', &mut buf)
-            .expect("Failed to read from port");
+        buf.resize(256, b' ');
+
+        let mut offset: usize = 0;
+        loop {
+            let n = self
+                .inner
+                .read(&mut buf[offset..])
+                .expect("Failed to read from port");
+            if let Some(idx) = buf[offset..offset + n].iter().position(|b| *b == 0) {
+                buf.truncate(offset + idx);
+                break;
+            }
+            offset += n;
+            if offset == buf.len() {
+                panic!("read_str buffer too small");
+            }
+        }
+
         buf.pop_if(|b| *b == b'\0');
         buf.pop_if(|b| *b == b'\r');
         buf.pop_if(|b| *b == b'\n');
@@ -135,8 +145,7 @@ impl FromStr for Feats {
     }
 }
 
-// const FAMILY_NRF52: &str = "nRF52840-QIAA";
-const FAMILY_NRF52: &str = "nnRF52840-QIAA";
+const FAMILY_NRF52: &str = "nRF52840-QIAA";
 
 #[derive(Debug)]
 struct Flash {
