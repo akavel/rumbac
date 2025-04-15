@@ -17,7 +17,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
 use serialport::SerialPort;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::str::FromStr;
 
 fn main() {
