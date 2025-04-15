@@ -2,7 +2,7 @@
 name = "rumbac"
 version = "0.1.0"
 edition = "2024"
-authors = ["Mateusz Czapliński <czapkofan@gmail.com>"]
+authors = ["Mateusz Czapliński <czapkofan@gmail.com>", "ShumaTech"]
 license = "GPL-3.0-or-later"
 
 [dependencies]
