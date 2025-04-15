@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>
 
+use anyhow::{bail, Context, Result};
 use serialport::SerialPort;
 use std::io::Write;
 use std::str::FromStr;
@@ -33,37 +34,52 @@ fn main() {
             }
         }
         Info(flags::Info { port }) => {
-            // TODO: what baudrate to use by default??
-            // let bauds = 921600u32;
-            let bauds = 230400u32;
-            use core::time::Duration;
-            let mut port: Port = serialport::new(port, bauds)
-                .timeout(Duration::from_secs(1))
-                .open()
-                .expect("Failed to open port")
-                .into();
-
-            // TODO: set binary mode
-
-            // "version" info
-            port.write("V#");
-            let version = port.read_str();
-            // parse "version" info
-            const FEATS_PREFIX: &str = "[Arduino:";
-            const FEATS_SUFFIX: &str = "]";
-            let feats_idx =
-                version.find(FEATS_PREFIX).expect("No feats prefix found") + FEATS_PREFIX.len();
-            let feats = &version[feats_idx..];
-            let feats_end = feats.find(FEATS_SUFFIX).expect("No feats end found");
-            let feats: Feats = feats[..feats_end].parse().unwrap();
+            let (_port, feats, flash) = init(&port).unwrap();
             println!("{feats:?}");
+            println!("{flash:?}");
+        }
+        Read(flags::Read { port, file }) => {}
+    }
+}
 
-            let mut flash = None;
-            if feats.identify_chip {
-                port.write("I#");
-                let ident = port.read_str();
-                if ident == FAMILY_NRF52 {
-                    flash = Some(Flash {
+fn init(port_name: &str) -> Result<(Port, Feats, Flash)> {
+    // TODO: what baudrate to use by default??
+    // let bauds = 921600u32;
+    let bauds = 230400u32;
+    use core::time::Duration;
+    let mut port: Port = serialport::new(port_name, bauds)
+        .timeout(Duration::from_secs(1))
+        .open()
+        .with_context(|| format!("Failed to open port {port_name}"))?
+        .into();
+
+    // TODO: set binary mode
+
+    // get "version" info
+    port.write("V#");
+    let version = port.read_str();
+    // parse "version" info
+    const FEATS_PREFIX: &str = "[Arduino:";
+    const FEATS_SUFFIX: &str = "]";
+    let feats_idx = version
+        .find(FEATS_PREFIX)
+        .with_context(|| format!("No {FEATS_PREFIX:?} found in version info {version:?}"))?
+        + FEATS_PREFIX.len();
+    let feats = &version[feats_idx..];
+    let feats_end = feats
+        .find(FEATS_SUFFIX)
+        .with_context(|| format!("No {FEATS_SUFFIX:?} found in version info {version:?}"))?;
+    let feats: Feats = feats[..feats_end].parse().unwrap();
+    // println!("{feats:?}");
+
+    if feats.identify_chip {
+        port.write("I#");
+        match port.read_str().as_ref() {
+            FAMILY_NRF52 => {
+                return Ok((
+                    port,
+                    feats,
+                    Flash {
                         name: FAMILY_NRF52.into(),
                         addr: 0,
                         pages: 256,
@@ -72,16 +88,17 @@ fn main() {
                         lock_regions: 0,
                         user: 0,
                         stack: 0,
-                    });
-                }
+                    },
+                ));
             }
-            println!("{flash:?}");
+            _ => (),
         }
     }
+    bail!("Device at {port_name:?} not recognized");
 }
 
 struct Port {
-    inner: Box<dyn serialport::SerialPort>,
+    inner: Box<dyn SerialPort>,
 }
 
 impl From<Box<dyn SerialPort>> for Port {
@@ -186,6 +203,14 @@ mod flags {
             cmd info {
                 required -p,--port port: String
             }
+            cmd read {
+                required -p,--port port: String
+                required -f,--file file: String
+            }
+            // cmd write {
+            //     required -p,--port port: String
+            //     required -f
+            // }
         }
     }
     // generated start
@@ -200,6 +225,7 @@ mod flags {
     pub enum RumbacCmd {
         List(List),
         Info(Info),
+        Read(Read),
     }
 
     #[derive(Debug)]
@@ -208,6 +234,12 @@ mod flags {
     #[derive(Debug)]
     pub struct Info {
         pub port: String,
+    }
+
+    #[derive(Debug)]
+    pub struct Read {
+        pub port: String,
+        pub file: String,
     }
 
     impl Rumbac {

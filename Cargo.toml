@@ -6,5 +6,6 @@ authors = ["Mateusz Czapliński <czapkofan@gmail.com>", "ShumaTech"]
 license = "GPL-3.0-or-later"
 
 [dependencies]
+anyhow = "1.0.98"
 serialport = "4.7.1"
 xflags = "0.3.2"
