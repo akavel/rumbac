@@ -28,13 +28,26 @@ fn main() {
         // list known ports
         // TODO: make it prettier
         let ports = serialport::available_ports().expect("Failed to read serial ports");
-        println!("Found {} serial ports.", ports.len());
+        let n = ports.len();
+        let ending = match n {
+            0 => "s.",
+            1 => ":",
+            2.. => "s:",
+        };
+        println!("Found {n} serial port{ending}");
+        if n == 0 {
+            println!(
+                "HINT: Did you press the magic combination of button(s) on your plugged-in device to put it in RESET / BOOT mode?"
+            );
+            return;
+        }
         for p in ports {
-            println!("port: {p:?}");
+            println!(" {:?} = {:?}", p.port_name, p.port_type);
         }
         return;
     };
 
+    println!("Initializing {port:?}...");
     let (port, feats, flash) = init(&port).unwrap();
 
     let Some(file) = flags.file else {
