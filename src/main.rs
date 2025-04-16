@@ -24,32 +24,36 @@ use std::str::FromStr;
 fn main() {
     let flags = flags::Rumbac::from_env_or_exit();
 
-    use flags::RumbacCmd::*;
-    match flags.subcommand {
-        List(_) => {
-            let ports = serialport::available_ports().expect("Failed to read serial ports");
-            println!("Found {} serial ports.", ports.len());
-            for p in ports {
-                println!("port: {p:?}");
-            }
+    let Some(port) = flags.port else {
+        // list known ports
+        // TODO: make it prettier
+        let ports = serialport::available_ports().expect("Failed to read serial ports");
+        println!("Found {} serial ports.", ports.len());
+        for p in ports {
+            println!("port: {p:?}");
         }
-        Info(flags::Info { port }) => {
-            let (_port, feats, flash) = init(&port).unwrap();
-            println!("{feats:?}");
-            println!("{flash:?}");
-        }
-        Read(flags::Read { port, file }) => {
-            let (mut port, _feats, flash) = init(&port).unwrap();
-            // "set binary mode"
-            port.write("N#");
-            let mut buf = [0u8; 2];
-            port.read_full(&mut buf);
-            let mut r = FlashReader::new(&mut port, &flash);
-            use std::{fs, io};
-            let mut f = fs::File::create(file).unwrap();
-            io::copy(&mut r, &mut f).unwrap();
-        }
-    }
+        return;
+    };
+
+    let (port, feats, flash) = init(&port).unwrap();
+
+    let Some(file) = flags.file else {
+        println!("{feats:?}");
+        println!("{flash:?}");
+        return;
+    };
+
+    // TODO: write file to flash
+    /*
+        // "set binary mode"
+        port.write("N#");
+        let mut buf = [0u8; 2];
+        port.read_full(&mut buf);
+        let mut r = FlashReader::new(&mut port, &flash);
+        use std::{fs, io};
+        let mut f = fs::File::create(file).unwrap();
+        io::copy(&mut r, &mut f).unwrap();
+    */
 }
 
 fn init(port_name: &str) -> Result<(Port, Feats, Flash)> {
@@ -212,6 +216,7 @@ struct Flash {
     stack: u32,
 }
 
+/*
 struct FlashReader<'a> {
     port: &'a mut Port,
     flash: &'a Flash,
@@ -266,24 +271,19 @@ impl std::io::Read for FlashReader<'_> {
         Ok(n)
     }
 }
+*/
 
 mod flags {
+    // Planned usage patterns:
+    // $ rumbac        ## lists detected ports
+    // $ rumbac $PORT  ## shows info about device on given port
+    // $ rumbac $PORT $FILE.bin  ## flashes $FILE.bin to device
     xflags::xflags! {
         src "./src/main.rs"
 
         cmd rumbac {
-            default cmd list { }
-            cmd info {
-                required -p,--port port: String
-            }
-            cmd read {
-                required -p,--port port: String
-                required -f,--file file: String
-            }
-            // cmd write {
-            //     required -p,--port port: String
-            //     required -f
-            // }
+            optional port: String
+            optional file: String
         }
     }
     // generated start
@@ -291,28 +291,8 @@ mod flags {
     // Run `env UPDATE_XFLAGS=1 cargo build` to regenerate.
     #[derive(Debug)]
     pub struct Rumbac {
-        pub subcommand: RumbacCmd,
-    }
-
-    #[derive(Debug)]
-    pub enum RumbacCmd {
-        List(List),
-        Info(Info),
-        Read(Read),
-    }
-
-    #[derive(Debug)]
-    pub struct List;
-
-    #[derive(Debug)]
-    pub struct Info {
-        pub port: String,
-    }
-
-    #[derive(Debug)]
-    pub struct Read {
-        pub port: String,
-        pub file: String,
+        pub port: Option<String>,
+        pub file: Option<String>,
     }
 
     impl Rumbac {
