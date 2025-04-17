@@ -18,7 +18,7 @@
 
 use anyhow::{Context, Result, bail};
 use serialport::SerialPort;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::str::FromStr;
 
 fn main() {
@@ -48,7 +48,7 @@ fn main() {
     };
 
     println!("Initializing {port:?}...");
-    let (port, feats, flash) = init(&port).unwrap();
+    let (mut port, feats, flash) = init(&port).unwrap();
 
     let Some(file) = flags.file else {
         println!("{feats:?}");
@@ -57,6 +57,53 @@ fn main() {
     };
 
     // TODO: write file to flash
+    // FIXME: verify file size fits in available flash
+    if !feats.write_buffer {
+        panic!("only write_buffer flashing method currently implemented");
+    }
+    port.write("N#");
+    port.expect("\n\r");
+    const WRITE_BUF_SIZE: u32 = 4096;
+    let mut buf = vec![0u8; WRITE_BUF_SIZE as usize];
+    let mut offset = 0u32;
+    let mut file = std::fs::File::open(file).expect("Cannot open input file");
+    loop {
+        let mut n = read_buf(&mut file, &mut buf).expect("Error reading input file") as u32;
+        if n == 0 {
+            break; // eof
+        }
+        if n < WRITE_BUF_SIZE {
+            buf[n as usize..].fill(0u8);
+        }
+        let page_size = flash.size;
+        if n < WRITE_BUF_SIZE {
+            n = (n + page_size - 1) / page_size * page_size;
+            if n > WRITE_BUF_SIZE {
+                n = WRITE_BUF_SIZE;
+            }
+        }
+
+        port.write(&format!("S{:08X},{n:08X}#", flash.user));
+        port.inner.flush();
+        port.write_all(&buf[..n as usize]);
+
+        port.write(&format!("Y{:08X},0#", flash.user));
+        port.expect("Y\n\r");
+
+        let dst_addr = flash.addr + offset;
+        port.write(&format!("Y{dst_addr:08X},{n:08X}#"));
+        port.expect("Y\n\r");
+
+        offset += n;
+    }
+
+    // TODO: verify (if flag set)
+
+    // TODO: reset (if flag set)
+    if feats.reset {
+        port.write("K#");
+    }
+
     /*
         // "set binary mode"
         port.write("N#");
@@ -140,10 +187,34 @@ impl Port {
 
     pub fn write(&mut self, s: &str) {
         println!("> {}", s);
-        let _ = self
-            .inner
-            .write(s.as_bytes())
-            .expect("Failed to write to port");
+        self.write_all(s.as_bytes());
+    }
+
+    pub fn write_all(&mut self, buf: &[u8]) {
+        let mut offset: usize = 0;
+        while offset < buf.len() {
+            offset += self
+                .inner
+                .write(&buf[offset..])
+                .expect("Failed to write to port");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+    }
+
+    pub fn expect(&mut self, response: &str) {
+        let mut buf = vec![b' '; response.len()];
+        let mut offset: usize = 0;
+        while offset < buf.len() {
+            offset += self
+                .inner
+                .read(&mut buf[offset..])
+                .expect("Failed to read from port");
+        }
+        let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
+        println!("< {line:?}");
+        if line != response {
+            panic!("got unexpected response");
+        }
     }
 
     pub fn read_full(&mut self, buf: &mut [u8]) {
@@ -154,6 +225,8 @@ impl Port {
                 .read(&mut buf[offset..])
                 .expect("Failed to read from port");
         }
+        let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
+        println!("< {line}");
     }
 
     pub fn read_str(&mut self) -> String {
@@ -230,6 +303,13 @@ struct Flash {
 }
 
 /*
+struct FlashWriter<'a> {
+    port: &'a mut Port,
+    flash: &'a Flash,
+}
+*/
+
+/*
 struct FlashReader<'a> {
     port: &'a mut Port,
     flash: &'a Flash,
@@ -286,6 +366,27 @@ impl std::io::Read for FlashReader<'_> {
 }
 */
 
+fn read_buf(r: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
+    let mut off = 0usize;
+    while off < buf.len() {
+        use std::io::ErrorKind::*;
+        match r.read(&mut buf[off..]) {
+            Ok(n) => {
+                off += n;
+                if n == 0 {
+                    return Ok(off);
+                }
+            }
+            Err(e) => match e.kind() {
+                UnexpectedEof => return Ok(off),
+                Interrupted => continue,
+                _ => return Err(e),
+            },
+        }
+    }
+    Ok(off)
+}
+
 mod flags {
     // Planned usage patterns:
     // $ rumbac        ## lists detected ports
@@ -297,6 +398,8 @@ mod flags {
         cmd rumbac {
             optional port: String
             optional file: String
+            // Erase the flash - may speed up writing
+            // optional -e,--erase
         }
     }
     // generated start
