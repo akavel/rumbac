@@ -12,6 +12,12 @@ just enough to allow flashing a .bin file to one of those supported boards.
 The implementation is based on a popular `bossac` tool,
 in a variant forked by the Arduino team for the _Nano_ board.
 
+_Note:_ the tool does not currently implement variants of the "SAM-BA"
+protocol for any other boards, because I don't own them, and thus cannot
+test. If you'd like to have support added for your favourite bossac-compatible
+board, this project is open to contributions/forks - or,
+you could send me a specimen of that board and I will try to add it.
+
 To install the tool, run:
 
     cargo install --git https://github.com/akavel/rumbac
