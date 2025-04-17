@@ -99,21 +99,9 @@ fn main() {
 
     // TODO: verify (if flag set)
 
-    // TODO: reset (if flag set)
     if feats.reset {
         port.write("K#");
     }
-
-    /*
-        // "set binary mode"
-        port.write("N#");
-        let mut buf = [0u8; 2];
-        port.read_full(&mut buf);
-        let mut r = FlashReader::new(&mut port, &flash);
-        use std::{fs, io};
-        let mut f = fs::File::create(file).unwrap();
-        io::copy(&mut r, &mut f).unwrap();
-    */
 }
 
 fn init(port_name: &str) -> Result<(Port, Feats, Flash)> {
@@ -126,8 +114,6 @@ fn init(port_name: &str) -> Result<(Port, Feats, Flash)> {
         .open()
         .with_context(|| format!("Failed to open port {port_name}"))?
         .into();
-
-    // TODO: set binary mode
 
     // get "version" info
     port.write("V#");
@@ -217,18 +203,6 @@ impl Port {
         }
     }
 
-    pub fn read_full(&mut self, buf: &mut [u8]) {
-        let mut offset: usize = 0;
-        while offset < buf.len() {
-            offset += self
-                .inner
-                .read(&mut buf[offset..])
-                .expect("Failed to read from port");
-        }
-        let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
-        println!("< {line}");
-    }
-
     pub fn read_str(&mut self) -> String {
         let mut buf = vec![b' '; 256];
 
@@ -301,70 +275,6 @@ struct Flash {
     user: u32,
     stack: u32,
 }
-
-/*
-struct FlashWriter<'a> {
-    port: &'a mut Port,
-    flash: &'a Flash,
-}
-*/
-
-/*
-struct FlashReader<'a> {
-    port: &'a mut Port,
-    flash: &'a Flash,
-    buf: Vec<u8>,
-    page: u32,
-    read_offset: usize,
-}
-
-impl<'a> FlashReader<'a> {
-    pub fn new(port: &'a mut Port, flash: &'a Flash) -> Self {
-        let buf = vec![0; flash.size as usize];
-        let page = 0;
-        let read_offset = buf.len();
-        Self {
-            port,
-            flash,
-            buf,
-            page,
-            read_offset,
-        }
-    }
-}
-
-impl std::io::Read for FlashReader<'_> {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        if self.read_offset == self.buf.len() {
-            if self.page == self.flash.pages {
-                use std::io;
-                return Err(io::Error::from(io::ErrorKind::UnexpectedEof));
-            }
-            let addr = self.flash.addr + self.page * self.buf.len() as u32;
-            self.page += 1;
-            self.read_offset = 0;
-            // "The SAM firmware has a bug reading powers of 2 over 32 bytes
-            // via USB.  If that is the case here, then read the first byte
-            // with a readByte and then read one less than the requested size."
-            let mut off = 0;
-            let size = self.buf.len() as u32;
-            if size > 32 && (size & (size - 1)) == 0 {
-                self.port.write(&format!("o{:08X},4#", addr));
-                self.port.read_full(&mut self.buf[0..1]);
-                off = 1;
-            }
-            self.port
-                .write(&format!("R{:08X},{:08X}#", addr + off, size - off));
-            self.port.read_full(&mut self.buf[off as usize..]);
-        }
-        use std::cmp::min;
-        let n = min(buf.len(), self.buf.len() - self.read_offset);
-        buf.copy_from_slice(&self.buf[self.read_offset..][..n]);
-        self.read_offset += n;
-        Ok(n)
-    }
-}
-*/
 
 fn read_buf(r: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
     let mut off = 0usize;
