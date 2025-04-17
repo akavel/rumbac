@@ -34,27 +34,27 @@ Found 1 serial port:
 
 C:> rumbac COM13
 Initializing "COM13"...
-> V#
-< Arduino Bootloader (SAM-BA extended) 2.0 [Arduino:IKXYZ]
-> I#
-< nRF52840-QIAA
+> "V#"
+< "Arduino Bootloader (SAM-BA extended) 2.0 [Arduino:IKXYZ]\n\r"
+> "I#"
+< "nRF52840-QIAA\n\r"
 Feats { chip_erase: true, write_buffer: true, checksum_buffer: true, identify_chip: true, reset: true }
 Flash { name: "nRF52840-QIAA", addr: 0, pages: 256, size: 4096, planes: 1, lock_regions: 0, user: 0, stack: 0 }
 
 C:> rumbac COM13 myprogram.bin
 Initializing "COM13"...
-> V#
-< Arduino Bootloader (SAM-BA extended) 2.0 [Arduino:IKXYZ]
-> I#
-< nRF52840-QIAA
-> N#
+> "V#"
+< "Arduino Bootloader (SAM-BA extended) 2.0 [Arduino:IKXYZ]\n\r"
+> "I#"
+< "nRF52840-QIAA\n\r"
+> "N#"
 < "\n\r"
-> S00000000,00001000#
-> Y00000000,0#
+> "S00000000,00001000#"
+> "Y00000000,0#"
 < "Y\n\r"
-> Y00000000,00001000#
+> "Y00000000,00001000#"
 < "Y\n\r"
-> K#
+> "K#"
 ```
 
 _The device should now automatically disconnect and start running

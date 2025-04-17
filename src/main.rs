@@ -172,7 +172,7 @@ impl Port {
     }
 
     pub fn write(&mut self, s: &str) {
-        println!("> {}", s);
+        println!("> {:?}", s);
         self.write_all(s.as_bytes());
     }
 
@@ -222,11 +222,12 @@ impl Port {
             }
         }
 
+        let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
+        println!("< {line:?}");
         buf.pop_if(|b| *b == b'\0');
         buf.pop_if(|b| *b == b'\r');
         buf.pop_if(|b| *b == b'\n');
         let line = std::str::from_utf8(&buf).expect("Cannot parse as UTF8");
-        println!("< {line}");
         line.into()
     }
 }
