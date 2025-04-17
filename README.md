@@ -6,7 +6,7 @@ programs to the _Arduino Nano 33 BLE_ or _... Sense_ board
 
 The boards come preprogrammed with a builtin bootloader,
 communicating over a serial port over USB.
-The protocol used for that is a very simple, text-based one.
+The protocol used for that is a very simple, text-based one, called "SAM-BA".
 `rumbac` implements a very minimal subset of that protocol,
 just enough to allow flashing a .bin file to one of those supported boards.
 The implementation is based on a popular `bossac` tool,
