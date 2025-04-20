@@ -10,7 +10,9 @@ The protocol used for that is a very simple, text-based one, called "SAM-BA".
 `rumbac` implements a very minimal subset of that protocol,
 just enough to allow flashing a .bin file to one of those supported boards.
 The implementation is based on a popular `bossac` tool,
-in a variant forked by the Arduino team for the _Nano_ board.
+in [a variant forked by the Arduino team for the _Nano_ board][arduino fork].
+
+[arduino fork]: https://github.com/shumatech/BOSSA/compare/master...arduino:BOSSA:nrf
 
 _Note:_ the tool does not currently implement variants of the "SAM-BA"
 protocol for any other boards, because I don't own them, and thus cannot
