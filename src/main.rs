@@ -55,6 +55,15 @@ fn main() {
         println!("{flash:?}");
         return;
     };
+    let mut file = std::fs::File::open(file).expect("Cannot open input file");
+    {
+        let metadata = file.metadata().expect("Cannot retrieve file size");
+        let size = metadata.len();
+        let max_size = flash.pages as u64 * flash.size as u64;
+        if size > max_size {
+            panic!("File size {size} too big, must not exceed flash size {max_size}");
+        }
+    }
 
     // TODO: write file to flash
     // FIXME: verify file size fits in available flash
@@ -66,7 +75,6 @@ fn main() {
     const WRITE_BUF_SIZE: u32 = 4096;
     let mut buf = vec![0u8; WRITE_BUF_SIZE as usize];
     let mut offset = 0u32;
-    let mut file = std::fs::File::open(file).expect("Cannot open input file");
     loop {
         let mut n = read_buf(&mut file, &mut buf).expect("Error reading input file") as u32;
         if n == 0 {
@@ -270,7 +278,7 @@ struct Flash {
     name: String,
     addr: u32,
     pages: u32,
-    size: u32,
+    size: u32, // page size
     planes: u32,
     lock_regions: u32,
     user: u32,
