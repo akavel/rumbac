@@ -65,8 +65,7 @@ fn main() {
         }
     }
 
-    // TODO: write file to flash
-    // FIXME: verify file size fits in available flash
+    // write file to flash
     if !feats.write_buffer {
         panic!("only write_buffer flashing method currently implemented");
     }
