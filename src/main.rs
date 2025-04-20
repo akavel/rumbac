@@ -91,7 +91,7 @@ fn main() {
         }
 
         port.write(&format!("S{:08X},{n:08X}#", flash.user));
-        port.inner.flush();
+        let _ = port.inner.flush();
         port.write_all(&buf[..n as usize]);
 
         port.write(&format!("Y{:08X},0#", flash.user));
