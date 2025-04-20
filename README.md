@@ -1,7 +1,7 @@
-# rumbac - a simple flasher for _Arduino Nano 33 BLE / Sense_
+# rumbac - a simple flasher for _Arduino Nano 33 BLE Rev2 / Sense Rev2_
 
 `rumbac` is a simple commandline tool for uploading .bin files with compiled
-programs to the _Arduino Nano 33 BLE_ or _... Sense_ board
+programs to the _Arduino Nano 33 BLE Rev2_ or _... Sense Rev2_ board
 (with the _nRF52840_ microcontroller).
 
 The boards come preprogrammed with a builtin bootloader,
